@@ -1,48 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:theme_and_clean_architecture_state_management/presentation/cart/cart_bloc.dart';
 import 'package:theme_and_clean_architecture_state_management/presentation/cart/cart_screen.dart';
+import 'package:theme_and_clean_architecture_state_management/presentation/home/home_bloc.dart';
 import 'package:theme_and_clean_architecture_state_management/presentation/home/products/products_screen.dart';
 import 'package:theme_and_clean_architecture_state_management/presentation/profile/profile_screen.dart';
 import 'package:theme_and_clean_architecture_state_management/presentation/theme.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+import '../../domain/repository/api_repository_interface.dart';
+import '../../domain/repository/local_storage_repository.dart';
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
+class HomeScreen extends StatelessWidget {
+  const HomeScreen._({Key? key}) : super(key: key);
 
-class _HomeScreenState extends State<HomeScreen> {
-  int currentIndex = 0;
+  static Widget init(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => HomeBLoC(
+        apiRespositoryInteface: context.read<ApiRespositoryInteface>(),
+        localRepositoryInterface: context.read<LocalRepositoryInterface>(),
+      )..loadUser(),
+      builder: (_, __) => const HomeScreen._(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bloc = Provider.of<HomeBLoC>(context);
+
     return Scaffold(
       body: Column(
         children: [
           Expanded(
             child: IndexedStack(
-              index: currentIndex,
+              index: bloc.indexSelected, // currentIndex,
               children: [
-                const ProductsScreen(),
-                Text('Seleccionado: $currentIndex'),
+                ProductsScreen.init(context),
+                const Placeholder(),
                 CartScreen(
                   onShopping: () {
-                    setState(() {
-                      currentIndex = 0;
-                    });
+                    bloc.updateIndexSelected(0);
                   },
                 ),
-                Text('Seleccionado: $currentIndex'),
-                const ProfileScreen(),
+                const Placeholder(),
+                ProfileScreen.init(context),
               ],
             ),
           ),
           _DeliveryNavigatorBar(
-              index: currentIndex,
+              index: bloc.indexSelected!,
               onIndexSelected: (index) {
-                setState(() {
-                  currentIndex = index;
-                });
+                bloc.updateIndexSelected(index);
               }),
         ],
       ),
@@ -62,6 +69,9 @@ class _DeliveryNavigatorBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bloc = Provider.of<HomeBLoC>(context);
+    final cartBloc = context.watch<CartBLoC>();
+    final user = bloc.user;
     return Padding(
       padding: const EdgeInsets.all(5.0),
       child: DecoratedBox(
@@ -101,18 +111,38 @@ class _DeliveryNavigatorBar extends StatelessWidget {
             ),
             Material(
               color: Colors.transparent,
-              child: CircleAvatar(
-                radius: 23.0,
-                backgroundColor: DeliveryColors.purple,
-                child: IconButton(
-                  onPressed: () => onIndexSelected(2),
-                  icon: Icon(
-                    Icons.shopping_basket_outlined,
-                    color: index == 2
-                        ? DeliveryColors.green
-                        : DeliveryColors.lightGrey,
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 23.0,
+                    backgroundColor: DeliveryColors.purple,
+                    child: IconButton(
+                      onPressed: () => onIndexSelected(2),
+                      icon: Icon(
+                        Icons.shopping_basket_outlined,
+                        color: index == 2
+                            ? DeliveryColors.green
+                            : DeliveryColors.lightGrey,
+                      ),
+                    ),
                   ),
-                ),
+                  Positioned(
+                    right: 0,
+                    child: cartBloc.totalItems == 0
+                        ? const SizedBox.shrink()
+                        : CircleAvatar(
+                            radius: 10,
+                            backgroundColor: Colors.pinkAccent,
+                            child: Text(
+                              cartBloc.totalItems.toString(),
+                              style: const TextStyle(
+                                color: DeliveryColors.white,
+                                fontSize: 12.0,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
               ),
             ),
             Material(
@@ -129,10 +159,16 @@ class _DeliveryNavigatorBar extends StatelessWidget {
             ),
             InkWell(
               onTap: () => onIndexSelected(4),
-              child: const CircleAvatar(
-                radius: 15.0,
-                backgroundColor: Colors.red,
-              ),
+              child: (user?.image == null || user?.image == '')
+                  ? const SizedBox.shrink()
+                  : CircleAvatar(
+                      radius: 15.0,
+                      // backgroundColor: Colors.red,
+                      child: Image.asset(
+                        user!.image,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
             )
           ],
         ),

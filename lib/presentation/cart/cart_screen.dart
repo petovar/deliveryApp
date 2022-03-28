@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:theme_and_clean_architecture_state_management/presentation/cart/cart_bloc.dart';
 import 'package:theme_and_clean_architecture_state_management/presentation/theme.dart';
 import 'package:theme_and_clean_architecture_state_management/presentation/widgets/delivery_button.dart';
 
-import '../../data/products/in_memory_products.dart';
 import '../../domain/model/product.dart';
+import '../../domain/model/product_cart.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({
@@ -15,6 +17,7 @@ class CartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cartBloc = context.watch<CartBLoC>();
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -26,7 +29,9 @@ class CartScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: const _FullCart(),
+      body: cartBloc.totalItems == 0
+          ? _EmptyCart(onShopping: onShopping)
+          : const _FullCart(),
     );
   }
 }
@@ -36,6 +41,8 @@ class _FullCart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cartBloc = context.watch<CartBLoC>();
+
     return Scaffold(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,15 +50,15 @@ class _FullCart extends StatelessWidget {
           Expanded(
             flex: 3,
             child: ListView.builder(
-              itemCount: products.length,
+              itemCount: cartBloc.cartList.length,
               scrollDirection: Axis.horizontal,
               itemExtent: 270,
               itemBuilder: (BuildContext context, int index) {
-                final product = products[index];
+                final productCart = cartBloc.cartList[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(
                       vertical: 30.0, horizontal: 15.0),
-                  child: _ShoppingCartProduct(product: product),
+                  child: _ShoppingCartProduct(productCart: productCart),
                 );
               },
             ),
@@ -90,7 +97,7 @@ class _FullCart extends StatelessWidget {
                                   ),
                             ),
                             Text(
-                              '\$100.00 USD',
+                              '\$ ${cartBloc.totalPrice.toStringAsFixed(2)}',
                               style: Theme.of(context)
                                   .textTheme
                                   .caption!
@@ -139,7 +146,7 @@ class _FullCart extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '\$100.00 USD',
+                              '\$ ${cartBloc.totalPrice.toStringAsFixed(2)}',
                               style: TextStyle(
                                 color: Theme.of(context).dividerColor,
                                 fontSize: 18.0,
@@ -151,7 +158,9 @@ class _FullCart extends StatelessWidget {
                       ),
                       const Spacer(),
                       DeliveryButton(
-                        onTap: () {},
+                        onTap: () {
+                          cartBloc.checkOut();
+                        },
                         caption: 'Chekout',
                       )
                     ],
@@ -229,13 +238,14 @@ class _EmptyCart extends StatelessWidget {
 class _ShoppingCartProduct extends StatelessWidget {
   const _ShoppingCartProduct({
     Key? key,
-    required this.product,
+    required this.productCart,
   }) : super(key: key);
 
-  final Product product;
-
+  final ProductCart productCart;
   @override
   Widget build(BuildContext context) {
+    final cartBloc = context.watch<CartBLoC>();
+    Product product = productCart.product;
     return Stack(
       children: [
         Card(
@@ -304,7 +314,7 @@ class _ShoppingCartProduct extends StatelessWidget {
                           children: [
                             InkWell(
                               onTap: (() {
-                                //
+                                cartBloc.decrement(productCart);
                               }),
                               child: Container(
                                 decoration: BoxDecoration(
@@ -322,14 +332,14 @@ class _ShoppingCartProduct extends StatelessWidget {
                                 horizontal: 15.0,
                               ),
                               child: Text(
-                                '2',
+                                productCart.quantity.toStringAsFixed(0),
                                 style: TextStyle(
                                     color: Theme.of(context).dividerColor),
                               ),
                             ),
                             InkWell(
                               onTap: (() {
-                                //
+                                cartBloc.increment(productCart);
                               }),
                               child: Container(
                                 decoration: BoxDecoration(
@@ -363,7 +373,7 @@ class _ShoppingCartProduct extends StatelessWidget {
           right: 0,
           child: InkWell(
             onTap: () {
-              //
+              cartBloc.deleteProduct(productCart);
             },
             child: const CircleAvatar(
               backgroundColor: DeliveryColors.pink,

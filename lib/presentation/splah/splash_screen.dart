@@ -1,26 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:theme_and_clean_architecture_state_management/presentation/login/login_screen.dart';
-import 'package:theme_and_clean_architecture_state_management/presentation/theme.dart';
+import 'package:provider/provider.dart';
+import '../../domain/repository/local_storage_repository.dart';
+import '../home/home_screen.dart';
+import '../login/login_screen.dart';
+import 'splash_bloc.dart';
+import '../../domain/repository/api_repository_interface.dart';
+import '../theme.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  //
+  const SplashScreen._({Key? key}) : super(key: key);
+
+  static Widget init(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => SplashBLoC(
+        apiRespositoryInteface: context.read<ApiRespositoryInteface>(),
+        localRepositoryInterface: context.read<LocalRepositoryInterface>(),
+      ),
+      builder: (_, __) => const SplashScreen._(),
+    );
+  }
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  //
+  void _init() async {
+    //
+    final bloc = context.read<SplashBLoC>();
+    final result = await bloc.validateSession();
+
+    if (result) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => HomeScreen.init(context),
+        ),
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen.init(context),
+        ),
+      );
+    }
+    //
+  }
+
   @override
   void initState() {
-    Future.delayed(
-      const Duration(seconds: 2),
-      (() {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const LoginScreen(),
-          ),
-        );
-      }),
+    WidgetsBinding.instance?.addPostFrameCallback(
+      (_) {
+        //Se ejecuta solo luego de renderizar
+        _init();
+      },
     );
     super.initState();
   }
